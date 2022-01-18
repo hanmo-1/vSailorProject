@@ -15,6 +15,23 @@
 #include "CSVHelper.h"
 #include <QDebug>
 
+/***************加入阿里云************/
+#include <QtDebug>
+#include "./AliyunIoT/AliyunMqttClient.h"
+#include "./json/QJson.h"
+//下面是QJson解析相关
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+//绘制3D矩阵
+#include <QtDataVisualization/Q3DBars>
+#include <QtDataVisualization/QBar3DSeries>
+#include <QtDataVisualization/QBarDataRow>
+
+
+
+
 #ifdef WinDownVersion
 #pragma comment(lib,"user32.lib")
 #endif
@@ -107,6 +124,44 @@ MainWindow::MainWindow(QWidget *parent)
             this,&MainWindow::vSaveRxSeaskyText);
     vStatusbarCfg();
 
+/******************阿里云mqtt协议实现***********************/
+    //阿里云中压疮监测项目中的app设备的三元组
+    //    PRODUCT_KEY = "a15E4PLeFs6" ;
+    //    DEVICE_NAME = "app_terminal";
+    //    DEVICE_SECRET = "78acbb42b65b842ab3d785f12107ad6f";
+
+    this->vSerialCtr.vSeaskyPortCtr.client = new AliyunMqttClient(ui->productkeyEdit->text(),ui->devicenameEdit->text(),ui->devicesecretEdit->text(),this);
+
+
+    //    client->setHostname(ui->devicesecretEdit->text());
+    //    client->setPort(quint16(ui->portEdit->text().toInt()));
+    //    client->setUsername(ui->productkeyEdit->text());
+    //    client->setPassword(ui->devicenameEdit->text());
+
+    connect(this->vSerialCtr.vSeaskyPortCtr.client, &QMqttClient::disconnected, this, &MainWindow::brokerDisconnected);
+//    connect(client, &QMqttClient::messageReceived, this, &MainWindow::updateTempAndHumi);
+
+
+    connect(ui->productkeyEdit, &QLineEdit::textChanged,
+            this->vSerialCtr.vSeaskyPortCtr.client, &QMqttClient::setUsername);
+    connect(ui->devicenameEdit, &QLineEdit::textChanged,
+            this->vSerialCtr.vSeaskyPortCtr.client, &QMqttClient::setPassword);
+    connect(ui->devicesecretEdit, &QLineEdit::textChanged,
+            this->vSerialCtr.vSeaskyPortCtr.client, &QMqttClient::setHostname);
+    connect(ui->connectBtn, &QPushButton::released,
+            this, &MainWindow::aliyunConnect);
+    connect(ui->subBtn, &QPushButton::released,
+            this, &MainWindow::aliyunSub);
+
+    connect(ui->Plot3DBtn, &QPushButton::released,
+            this, &MainWindow::enablePlotThreeD);
+
+    plotThreeD();
+
+
+    //    connect(ui->portEdit, &QLineEdit::textChanged, this, &DrawGraphWindow::setClientPort);
+/************************************************************************/
+
     qDebug()<<"main tid:MainWindow"<< QThread::currentThreadId();
 }
 //析构函数
@@ -123,6 +178,8 @@ MainWindow::~MainWindow()
     vRxTxInfoTimer.stop();
     delete ui;
 }
+
+
 //退出事件->读取存储配置
 void MainWindow::closeEvent(QCloseEvent *event)
 {
@@ -140,7 +197,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::vDependenceAddr(void)
 {
     /*Seaky 协议使用相关数据*/
-    //设置依赖的两个Widget 16进制显示窗口
+    //设置依赖的两个Widget 16进制显示窗口 发送和接受
     this->vSerialCtr.vSeaskyPortCtr.setQWidgetAddr(
                 ui->scrollAreaWidgetContents_2,
                 ui->scrollAreaWidgetContents_3);
@@ -150,7 +207,7 @@ void MainWindow::vDependenceAddr(void)
                 &vTxQString[0],&vTxName[0],&vTxUnit[0],&vTxfloat[0]);
     /*波形显示控件波形名称查询地址*/
     ui->widgetScope->vSetNameAddr(&vRxName[0]);
-    /*协议操作地址受此分配*/
+    /*协议操作地址受此分配*/  //将串口协议中存放数据的地址换成是在窗口中显示的地址，这样串口中有数据就可以直接显示在RXD的列表中了
     this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.utf8_data = &vRxUtf8[0];
     this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data =     &vRxfloat[0];
     this->vSerialCtr.vSeaskyPortCtr.vProtocol.tx_info.utf8_data = &vTxUtf8[0];
@@ -638,6 +695,7 @@ void MainWindow::vInitSerialRx(void)
     //是否是使能了串口接收加入时间戳
     connect(ui->checkBoxRx2,&QCheckBox::released,
             this,&MainWindow::vRxTimerStampChanged);
+    qDebug() << "运行vInitSerialRx完毕";
 }
 //7.串口信息更新,只需要初始化一次
 void MainWindow::vInfoChangedInit(void)
@@ -775,11 +833,11 @@ void MainWindow::vInitSeasky(void)
             &this->vOpenGlWidget,
             &vOpenGlWidget::getCapeEuler,
             Qt::QueuedConnection);
-    //模型改变
+    //模型改变 选择了其中一个协议
     void (QComboBox::*vChanged)(int)=&QComboBox::activated;
     connect(ui->comboBox,vChanged,
             this,&MainWindow::vModuleChanged);
-    //数据改变，保存配置
+    //数据改变，保存配置 修改了的数据保存起来
     connect(&this->vSerialCtr.vSeaskyPortCtr,
             &vSeaskyPort::vInfoChanged,
             this,&MainWindow::vSaveModule);
@@ -1273,10 +1331,26 @@ void MainWindow::vRxSlotChanged(void)
     }
     if(this->rxModeCfg)//连接为协议接收
     {
-        //避免重复创建
-        this->vSerialCtr.vQObjectRxCtr.vDisConnectRx();
-        this->vSerialCtr.vSeaskyPortCtr.vDisConnectRx();
-        this->vSerialCtr.vSeaskyPortCtr.vConnectRx();
+        if(protocolSlectFlag == 1)  //1表示是选择了BMI088协议
+        {
+            qDebug() << "选择的是BMI088协议";
+            //避免重复创建
+            this->vSerialCtr.vQObjectRxCtr.vDisConnectRx();
+            this->vSerialCtr.vSeaskyPortCtr.vDisConnectRx();
+            this->vSerialCtr.vSeaskyPortCtr.vDisConnectAliyun(); //断开阿里云
+            this->vSerialCtr.vSeaskyPortCtr.vConnectRx();
+
+        }
+        if(protocolSlectFlag == 2)  //2表示是选择了阿里云Mqtt协议
+        {
+            qDebug() << "选择的是aliyun协议";
+            //避免重复创建
+            this->vSerialCtr.vQObjectRxCtr.vDisConnectRx();
+            this->vSerialCtr.vSeaskyPortCtr.vDisConnectRx();
+//            this->vSerialCtr.vSeaskyPortCtr.vConnectRx();
+            qDebug() << "运行到了vConnectAliyun协议";
+            this->vSerialCtr.vSeaskyPortCtr.vConnectAliyun(); //连接阿里云进行协议解析
+        }
     }
     else //连接为串口调试助手接收
     {
@@ -1309,16 +1383,16 @@ void MainWindow::vTxSlotChanged(void)
         ui->checkBox_4->setEnabled(true);
     }
 }
-//刷新Seasky协议模块
+//刷新Seasky协议模块，
 void MainWindow::vModuleChanged(qint16 index)
 {
     if(ui->comboBox->currentText()==QString::fromLocal8Bit("增加模块"))
     {
-        vModuleAddItem();
+        vModuleAddItem(); //添加协议，或者说是点击了增加模块的选项
     }
     else
     {
-        vShowModule(index);
+        vShowModule(index); //这里是显示默认的BMI088模块的初始化接收界面
     }
 }
 //刷新接收时间戳使能
@@ -1352,13 +1426,13 @@ void MainWindow::showTxHead(void)
                                                   16).toUpper().rightJustified(4, QChar('0')));
     ui->lineEdit_8->setText(QString::number(this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vDataLen,10));
 }
-//刷新协议寄存器数据
+//刷新协议寄存器数据 即是刷新数据接收窗口的数据
 void MainWindow::vPortShow(void)
 {
     ui->widgetScope1->vSetFlag(this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vReg);
     ui->widgetScope2->vSetFlag(this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vReg);
-    showRxHead();
-    showTxHead();
+    showRxHead(); //刷新帧头数据
+    showTxHead(); //刷新发送的帧头数据
     emit this->vSerialCtr.vSeaskyPortCtr.vQWidgetRxShow();
     emit this->vSerialCtr.vSeaskyPortCtr.vQWidgetTxShow();
 }
@@ -1471,12 +1545,24 @@ void MainWindow::vUpdateShow(void)
     vMapUpdata();
     emit vLinuxShow();
 }
-//刷新协议模块
+//刷新协议模块   这里是将你保存的接收和发送的窗口的数据（包括自己设置的名字和单位），显示出来传给要显示的地址
 void MainWindow::vShowModule(qint16 index)
 {
+    if(ui->comboBox->itemText(index) ==
+            QString::fromLocal8Bit("BMI088"))
+    {
+        qDebug() << "选择的是BMI088协议";
+        protocolSlectFlag = 1;
+    }
+    if(ui->comboBox->itemText(index) ==
+            QString::fromLocal8Bit("aliyun"))
+    {
+        qDebug() << "选择的是aliyun协议";
+        protocolSlectFlag = 2;
+    }
     if(ui->comboBox->itemText(index)!=
             QString::fromLocal8Bit("增加模块")&&
-            ui->comboBox->itemText(index)!="")
+            ui->comboBox->itemText(index)!="")   //判断不是增加模块和空的
     {
         QString path = qApp->applicationDirPath()+ModulePath+"/"+
                 ui->comboBox->currentText()+".ini";
@@ -1485,57 +1571,57 @@ void MainWindow::vShowModule(qint16 index)
         for(qint16 i=0;i<SeaskyPortNum;i++)
         {
             this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vName[i] =
-            settingsModule.value(QString("vNameRx:%1").arg(i+1),
-                                 QString("Name:%1").arg(i+1)).toString();
+                    settingsModule.value(QString("vNameRx:%1").arg(i+1),
+                                         QString("Name:%1").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vUnit[i] =
-            settingsModule.value(QString("vUnitRx:%1").arg(i+1),
-                                 QString("Unit:%1").arg(i+1)).toString();
+                    settingsModule.value(QString("vUnitRx:%1").arg(i+1),
+                                         QString("Unit:%1").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vQString[i] =
-            settingsModule.value(QString("vQStringRx:%1").arg(i+1),
-                                 QString("0").arg(i+1)).toString();
+                    settingsModule.value(QString("vQStringRx:%1").arg(i+1),
+                                         QString("0").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vFloat[i] =
-            settingsModule.value(QString("vFloatRx:%1").arg(i+1),
-                                 QString("0").arg(i+1)).toFloat();
+                    settingsModule.value(QString("vFloatRx:%1").arg(i+1),
+                                         QString("0").arg(i+1)).toFloat();
         }
         this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vCmdId =
-            settingsModule.value(QString("vCmdIdRx"),
-                                 QString("%1").arg(0X0001)).toUInt();
+                settingsModule.value(QString("vCmdIdRx"),
+                                     QString("%1").arg(0X0001)).toUInt();
         this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vReg =
-            settingsModule.value(QString("vRegRx"),
-                                 QString("%1").arg(0X00FF)).toUInt();
+                settingsModule.value(QString("vRegRx"),
+                                     QString("%1").arg(0X00FF)).toUInt();
         this->vSerialCtr.vSeaskyPortCtr.vRxSeasky.vDataLen =
-            settingsModule.value(QString("vDataLenRx"),
-                                 QString("0")).toInt();
+                settingsModule.value(QString("vDataLenRx"),
+                                     QString("0")).toInt();
 
         for(qint16 i=0;i<SeaskyPortNum;i++)
         {
             this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vName[i] =
-            settingsModule.value(QString("vNameTx:%1").arg(i+1),
-                                 QString("Name:%1").arg(i+1)).toString();
+                    settingsModule.value(QString("vNameTx:%1").arg(i+1),
+                                         QString("Name:%1").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vUnit[i] =
-            settingsModule.value(QString("vUnitTx:%1").arg(i+1),
-                                 QString("Unit:%1").arg(i+1)).toString();
+                    settingsModule.value(QString("vUnitTx:%1").arg(i+1),
+                                         QString("Unit:%1").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vQString[i] =
-            settingsModule.value(QString("vQStringTx:%1").arg(i+1),
-                                 QString("0").arg(i+1)).toString();
+                    settingsModule.value(QString("vQStringTx:%1").arg(i+1),
+                                         QString("0").arg(i+1)).toString();
             this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vFloat[i] =
-            settingsModule.value(QString("vFloatTx:%1").arg(i+1),
-                                 QString("0").arg(i+1)).toFloat();
+                    settingsModule.value(QString("vFloatTx:%1").arg(i+1),
+                                         QString("0").arg(i+1)).toFloat();
         }
         this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vCmdId =
-            settingsModule.value(QString("vCmdIdTx"),
-                                 QString("%1").arg(0X0001)).toUInt();
+                settingsModule.value(QString("vCmdIdTx"),
+                                     QString("%1").arg(0X0001)).toUInt();
         this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vReg =
-            settingsModule.value(QString("vRegTx"),
-                                 QString("%1").arg(0X00FF)).toUInt();
+                settingsModule.value(QString("vRegTx"),
+                                     QString("%1").arg(0X00FF)).toUInt();
         this->vSerialCtr.vSeaskyPortCtr.vTxSeasky.vDataLen =
-            settingsModule.value(QString("vDataLenTx"),
-                                 QString("0")).toInt();
+                settingsModule.value(QString("vDataLenTx"),
+                                     QString("0")).toInt();
         settingsModule.endGroup();
         vPortShow();
     }
 }
-//添加SEASKY协议模块
+//添加SEASKY协议模块 添加协议函数，主要是更新combox的列表
 void MainWindow::vModuleAddItem(void)
 {
     bool ok,nohave;
@@ -1547,7 +1633,7 @@ void MainWindow::vModuleAddItem(void)
     QInputDialog::getText(this,QString::fromLocal8Bit("增加模块"),
                   QString::fromLocal8Bit("新的模块名称"),
                   QLineEdit::Normal,"vName",
-                  &ok,Qt::WindowCloseButtonHint);
+                  &ok,Qt::WindowCloseButtonHint);  //得到输入的数据
     for(i=0;i<ui->comboBox->count();i++)
     {
         if(ok)
@@ -1563,21 +1649,21 @@ void MainWindow::vModuleAddItem(void)
     if(nohave&ok)
     {
         ui->comboBox->setItemText(ui->comboBox->count()-1,str);
-        ui->comboBox->addItem(QString::fromLocal8Bit("增加模块"));
+        ui->comboBox->addItem(QString::fromLocal8Bit("增加模块")); //在设置好后加上增加模块以便后面可以进行拓展增加模块
     }
     else if(!nohave)
     {
         doWarning(QString::fromLocal8Bit("该名称已被使用"));
     }
 }
-//保存SEASKY协议模块数据
+//保存SEASKY协议模块数据 将TxData和RxData中填写名字保存起来
 void MainWindow::vSaveModule(void)
 {
     if((ui->comboBox->currentText()!=QString::fromLocal8Bit("增加模块"))&&(ui->comboBox->currentText()!=""))
     {
         QString path = qApp->applicationDirPath()+
                 ModulePath+"/"+
-                ui->comboBox->currentText()+".ini";
+                ui->comboBox->currentText()+".ini";  //保存不同的文件即是保存combox中当前的协议
         QSettings settingsModule(path,QSettings::IniFormat);
         settingsModule.beginGroup("Module");
         for(qint16 i=0;i<SeaskyPortNum;i++)
@@ -1776,6 +1862,8 @@ bool MainWindow::eventFilter(QObject *object, QEvent *event)//步骤二
     }
     return QObject::eventFilter(object, event);
 }
+
+
 void MainWindow::vServerLinuxCfg(void)
 {
 //    scrollAreaWidgetLinux
@@ -2430,5 +2518,227 @@ void MainWindow::doAbout(void)
                             QString::fromLocal8Bit("作者：SEASKY-刘威\n"
                                                    "参考：\n"));
 }
+
+
+
+/************************下面是阿里云的模块**********************/
+
+
+//void MainWindow::updateTempAndHumi(const QByteArray &message, const QMqttTopicName &topic)
+//{
+//    const QString content = message;
+
+    /************************此代码是使用QT自带的QJson库*********************/
+    //    QJsonDocument doc = QJsonDocument::fromJson(message);
+    //    if(doc.isObject())
+    //    {
+    //        QJsonObject obj = doc.object();
+    //        QJsonValue value = *(obj.find("items")); //在obj中找出key值为item项的QJsonValue的值
+    //        if(value.isObject())
+    //        {
+    //            QJsonObject sub_obj = value.toObject();
+
+
+
+    //            QJsonValue humidity = *(sub_obj.find("humidity")); //在item中寻找presure03项的QJsonValue的值
+    //            if(humidity.isObject())
+    //            {
+    //                QJsonObject sub2_obj = humidity.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue temperature = *(sub_obj.find("temperature")); //在item中寻找presure03项的QJsonValue的值
+    //            if(temperature.isObject())
+    //            {
+    //                QJsonObject sub2_obj = temperature.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+
+    //            QJsonValue pressure = *(sub_obj.find("pressure")); //在item中寻找presure03项的QJsonValue的值
+    //            if(pressure.isObject())
+    //            {
+    //                QJsonObject sub2_obj = pressure.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+
+    //            QJsonValue presure01 = *(sub_obj.find("presure01")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure01.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure01.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue presure02 = *(sub_obj.find("presure02")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure02.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure02.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue presure03 = *(sub_obj.find("presure03")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure03.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure03.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue presure10 = *(sub_obj.find("presure10")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure10.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure10.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue presure11 = *(sub_obj.find("presure11")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure11.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure11.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+
+    //            QJsonValue presure12 = *(sub_obj.find("presure12")); //在item中寻找presure03项的QJsonValue的值
+    //            if(presure12.isObject())
+    //            {
+    //                QJsonObject sub2_obj = presure12.toObject();
+    //                QJsonValue sub3_value = *(sub2_obj.find("value"));  //在presure03中寻找value的值
+    //                qDebug() << sub3_value.toInt();     //调试打印取出来的值
+    //            }
+    //        }
+
+    //    }
+    /*****************************************************************/
+
+    /*************使用github上面的开源的接口（对QT的QJson相关类进行了封装，可以不通过QJsonDocument这个类来进行转换******************/
+//    json_object obj_json(message);
+//    json_object obj_items = obj_json.object("items");//取出其中的item 的json_object类型，里面主要是需要的数据
+//    qDebug() << obj_items.format_string();
+//    if(obj_items)
+//    {
+//        float pressure = obj_items.object("pressure").value("value").toDouble();
+//        qDebug() << pressure;
+
+//        float humidity = obj_items.object("humidity").value("value").toDouble();
+//        qDebug() << humidity;
+
+//        float temperature = obj_items.object("temperature").value("value").toDouble();
+//        qDebug() << temperature;
+//    }
+//    qDebug() << content;
+
+//    //    QStringList strList = content.split(" ");
+//    //    ui->tempEdit->setText(strList[0]);
+//    //    ui->humiEdit->setText(strList[1]);
+
+//}
+void MainWindow::aliyunConnect()
+{
+    if (this->vSerialCtr.vSeaskyPortCtr.client->state() == QMqttClient::Disconnected)
+    {
+        ui->devicesecretEdit->setEnabled(false);
+        //         ui->portEdit->setEnabled(false);
+        ui->connectBtn->setText(QString::fromLocal8Bit("断开"));
+        this->vSerialCtr.vSeaskyPortCtr.client->connectToHost();
+    }
+    else
+    {
+        ui->devicesecretEdit->setEnabled(true);
+        //         ui->portEdit->setEnabled(true);
+        ui->connectBtn->setText(QString::fromLocal8Bit("连接"));
+        this->vSerialCtr.vSeaskyPortCtr.client->disconnectFromHost();
+    }
+}
+
+
+void MainWindow::on_ledOnBtn_clicked()
+{
+if (this->vSerialCtr.vSeaskyPortCtr.client->publish(QString("LED"),QString("H").toUtf8()) == -1)
+    QMessageBox::critical(this, QLatin1String("Error"), QLatin1String("Could not publish message"));
+}
+void MainWindow::on_LedOffBtn_clicked()
+{
+ if (this->vSerialCtr.vSeaskyPortCtr.client->publish(QString("LED"),QString("L").toUtf8()) == -1)
+     QMessageBox::critical(this, QLatin1String("Error"), QLatin1String("Could not publish message"));
+
+}
+
+void MainWindow::enablePlotThreeD()
+{
+    this->vSerialCtr.vSeaskyPortCtr.enablePlot3DFlag = 1;
+}
+
+void MainWindow::plotThreeD()
+{
+    QtDataVisualization::Q3DBars *bars = new QtDataVisualization::Q3DBars;
+    bars->scene()->activeCamera()->setCameraPosition(30, 45);
+    bars->setFlags(bars->flags() ^ Qt::FramelessWindowHint);
+    bars->rowAxis()->setRange(0, 3);
+    bars->columnAxis()->setRange(0, 3);
+    QtDataVisualization::QBar3DSeries *series = new QtDataVisualization::QBar3DSeries;
+    QtDataVisualization::QBarDataRow *data = new QtDataVisualization::QBarDataRow;
+    QtDataVisualization::QBarDataRow *data1 = new QtDataVisualization::QBarDataRow;
+    QtDataVisualization::QBarDataRow *data2 = new QtDataVisualization::QBarDataRow;
+    QtDataVisualization::QBarDataRow *data3 = new QtDataVisualization::QBarDataRow;
+    connect(&this->vSerialCtr.vSeaskyPortCtr, &vSeaskyPort::Rx3DScope,
+            [=](){
+
+        *data << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[2]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[3]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[4]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[5];
+        *data1 << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[6]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[7]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[8]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[9];
+        *data2 << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[10]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[11]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[12]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[13];
+        *data3 << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[14]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[15]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[16]
+                << this->vSerialCtr.vSeaskyPortCtr.vProtocol.rx_info.data[17];
+        series->dataProxy()->addRow(data);
+        series->dataProxy()->addRow(data1);
+        series->dataProxy()->addRow(data2);
+        series->dataProxy()->addRow(data3);
+        bars->addSeries(series);
+        bars->show();
+    });
+}
+
+void MainWindow::brokerDisconnected()
+{
+    ui->devicesecretEdit->setEnabled(true);
+    //    ui->portEdit->setEnabled(true);
+    ui->connectBtn->setText(QString::fromLocal8Bit("连接"));
+}
+
+void MainWindow::aliyunSub()
+{
+    qDebug() << "aliyun subscribe";
+    auto subscription = this->vSerialCtr.vSeaskyPortCtr.client->subscribe(ui->subEdit->text());
+    if (!subscription) {
+        QMessageBox::critical(this, QLatin1String("Error"), QLatin1String("Could not subscribe. Is there a valid connection?"));
+        return;
+    }
+}
+
+void MainWindow::setClientPort(const QString &s)
+{
+    this->vSerialCtr.vSeaskyPortCtr.client->setPort(quint16(s.toInt()));
+}
+
+
+
 
 

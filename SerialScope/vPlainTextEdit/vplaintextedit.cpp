@@ -1,6 +1,6 @@
 ﻿#include "vplaintextedit.h"
 #include <QDebug>
-//自定义的可以刷新大量数据的QPlainTextEdit显示窗口，定时器开启自动刷新
+//自定义的可以刷新大量数据的QPlainTextEdit显示窗口，定时器开启自动刷新 串口接收，发送窗口的控件
 static int32_t MAXRANGESIZE = 8192;
 vPlainTextEdit::vPlainTextEdit(QWidget *parent) : QTextEdit(parent)
 {

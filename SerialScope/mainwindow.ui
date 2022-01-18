@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>954</width>
-    <height>676</height>
+    <width>1171</width>
+    <height>772</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,25 +15,13 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <property name="leftMargin">
-     <number>6</number>
-    </property>
-    <property name="topMargin">
-     <number>6</number>
-    </property>
-    <property name="rightMargin">
-     <number>6</number>
-    </property>
-    <property name="bottomMargin">
-     <number>6</number>
-    </property>
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget1">
       <property name="enabled">
        <bool>true</bool>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <property name="iconSize">
        <size>
@@ -633,8 +621,8 @@
                    <rect>
                     <x>0</x>
                     <y>0</y>
-                    <width>792</width>
-                    <height>201</height>
+                    <width>98</width>
+                    <height>28</height>
                    </rect>
                   </property>
                  </widget>
@@ -669,8 +657,8 @@
                    <rect>
                     <x>0</x>
                     <y>0</y>
-                    <width>792</width>
-                    <height>201</height>
+                    <width>98</width>
+                    <height>28</height>
                    </rect>
                   </property>
                  </widget>
@@ -1628,8 +1616,8 @@
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>354</width>
-                     <height>382</height>
+                     <width>459</width>
+                     <height>385</height>
                     </rect>
                    </property>
                   </widget>
@@ -1669,8 +1657,8 @@
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>353</width>
-                     <height>382</height>
+                     <width>459</width>
+                     <height>385</height>
                     </rect>
                    </property>
                   </widget>
@@ -1724,7 +1712,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>172</width>
-                  <height>142</height>
+                  <height>155</height>
                  </rect>
                 </property>
                </widget>
@@ -1760,7 +1748,7 @@
       </widget>
       <widget class="QWidget" name="tab1_3">
        <attribute name="title">
-        <string>串口示波器</string>
+        <string>示波器</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_26">
         <property name="leftMargin">
@@ -2730,6 +2718,158 @@ p, li { white-space: pre-wrap; }
       </widget>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="QWidget" name="widget_7" native="true">
+      <layout class="QGridLayout" name="gridLayout_43">
+       <item row="0" column="2" colspan="2">
+        <widget class="QPushButton" name="subBtn">
+         <property name="text">
+          <string>订阅</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="4">
+        <widget class="QPushButton" name="ledOnBtn">
+         <property name="text">
+          <string>LED开</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0" rowspan="2">
+        <widget class="QWidget" name="widget_10" native="true">
+         <layout class="QGridLayout" name="gridLayout_44">
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="productkeyEdit">
+            <property name="text">
+             <string>a15E4PLeFs6</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="font">
+             <font>
+              <family>新宋体</family>
+              <pointsize>12</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>DeviceName：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="devicenameEdit">
+            <property name="font">
+             <font>
+              <family>Agency FB</family>
+              <pointsize>7</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>app_terminal</string>
+            </property>
+            <property name="frame">
+             <bool>true</bool>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Normal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QLineEdit" name="devicesecretEdit">
+            <property name="text">
+             <string>78acbb42b65b842ab3d785f12107ad6f</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="3" colspan="2">
+           <widget class="QLineEdit" name="subEdit">
+            <property name="text">
+             <string>/sys/a15E4PLeFs6/app_terminal/thing/service/property/set</string>
+            </property>
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2" colspan="2">
+           <widget class="QLabel" name="label_3">
+            <property name="font">
+             <font>
+              <family>新宋体</family>
+              <pointsize>12</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>DeviceSecret：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="font">
+             <font>
+              <family>新宋体</family>
+              <pointsize>12</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>ProductKey：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QLabel" name="label_8">
+            <property name="font">
+             <font>
+              <family>新宋体</family>
+              <pointsize>12</pointsize>
+              <weight>50</weight>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>订  阅:</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QPushButton" name="connectBtn">
+         <property name="text">
+          <string>连接</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="5">
+        <widget class="QPushButton" name="LedOffBtn">
+         <property name="text">
+          <string>LED关</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPushButton" name="Plot3DBtn">
+         <property name="text">
+          <string>矩形显示</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -2737,8 +2877,8 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>954</width>
-     <height>26</height>
+     <width>1171</width>
+     <height>23</height>
     </rect>
    </property>
   </widget>

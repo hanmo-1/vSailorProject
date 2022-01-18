@@ -11,6 +11,18 @@
 #include <vopenglwidget.h>
 #include <QString>
 #include <vtcpctr.h>
+
+
+/*********加入阿里云Mqtt物联网协议*****************/
+#include <QtMqtt/qmqttclient.h>
+#include <QStringList>
+#include <QMessageBox>
+#include "./AliyunIoT/AliyunMqttClient.h"
+
+#include <QtDataVisualization/Q3DBars>
+#include <QtDataVisualization/QBar3DSeries>
+#include <QtDataVisualization/QBarDataRow>
+
 /*后续考虑加入Linux的支持*/
 #define WinDownVersion
 
@@ -49,11 +61,13 @@ public:
 
     QByteArray         * vLinuxData;//提供数据原始地址 使用NEW创建
     //基础功能的串口类
-    vSerialCom    vSerialCtr;
+    vSerialCom    vSerialCtr;  //包含接收线程和发送线程和协议线程
     bool          rxModeCfg = false;//是否使能协议
     bool          txModeCfg = false;//是否使能协议
     //电脑信息
     vCafesClient  vCafes;
+    //协议选择标志位 比如选择的是BMI008或者阿里云（这里可以拓展）
+    qint32        protocolSlectFlag = 0;
 
     //TCP支持
     vTcpCtr vServerTcp;
@@ -61,6 +75,8 @@ public:
     QTimer vRxTxInfoTimer;
 
     QTimer vTxTcpTimer;
+//    //阿里云mqtt支持
+//    AliyunMqttClient *client;
     /*----------------串口插拔检测-----------------*/
 #ifdef WinDownVersion
     void vWindownInit(void);
@@ -103,6 +119,9 @@ public:
     void vTcpListCfg(int index);
     void vTxInfosInit(qint32 MultPleNum);
     void vServerLinuxCfg(void);
+
+    //绘制3D矩阵显示
+    void plotThreeD(void);
 
 
 public slots:
@@ -147,6 +166,20 @@ public slots:
     void vTxTcpStampCfg(void);
 protected:
     bool eventFilter(QObject *target, QEvent *event) override;
+/******************下面是阿里云有关的槽函数****************/
+//    void on_connectBtn_clicked();
+    void on_ledOnBtn_clicked();
+    void on_LedOffBtn_clicked();
+
+    void enablePlotThreeD();    //按键使能绘制3D矩阵显示
+    void aliyunConnect();  //阿里云连接
+    void aliyunSub();      //阿里云topic订阅
+    void brokerDisconnected();
+//    void updateTempAndHumi(const QByteArray &message, const QMqttTopicName &topic);
+    void on_subButton_clicked();
+    void setClientPort(const QString &s);
+    void on_checkBoxTem_stateChanged(int arg1);
+/******************上面是阿里云有关的槽函数****************/
 signals:
     void plaintextEditShowOne(void);
     void vhexRxShowOne(void);
@@ -163,6 +196,7 @@ signals:
     void vMapTcpUpdata(void);
     void vWriteData(const QByteArray &str);
     void vLinuxShow(void);
+
 protected:
     void closeEvent(QCloseEvent *event);
     void doCritical(const QString &str);
@@ -178,6 +212,7 @@ protected:
     /*----------------串口插拔检测-----------------*/
 private:
     Ui::MainWindow *ui;
+
 
 };
 #endif // MAINWINDOW_H

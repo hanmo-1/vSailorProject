@@ -12,6 +12,8 @@
 #include <QSerialPort>
 #include <vserialport.h>
 
+#include "./AliyunIoT/AliyunMqttClient.h"
+
 #include <QDebug>
 typedef struct
 {
@@ -41,13 +43,16 @@ public:
     void vDisConnectRx(void);
     void vConnectTx(void);
     void vDisConnectTx(void);
+    //加入阿里云协议处理的连接函数
+    void vConnectAliyun(void);
+    void vDisConnectAliyun(void);
     QWidget        * vTxEdit = nullptr;
     QWidget        * vRxEdit = nullptr;
     vSeaskyData vRxSeasky;
     vSeaskyData vTxSeasky;
 
     QVector<float> vRxdata;
-    QVariant ShowQVariant;
+    QVariant ShowQVariant;     //数据显示
 
     QByteArray  vRxShow;
     QByteArray  vRxBuff;//数据处理缓冲，中间量
@@ -62,6 +67,11 @@ public:
     //用于协议发送计时器
     QTimer    vQTimerTx;
     qint32    vQtimerTxCnt=100;
+
+    //阿里云参数
+    AliyunMqttClient *client;
+    //按键控制改变标志位
+    qint32 enablePlot3DFlag = 0;
     void setTimer(qint32 Cnt)
     {
         timerCntSet = Cnt;
@@ -86,6 +96,9 @@ public slots:
     void vSeaskyRxIRQ(void);
     void vSeaskyRxIRQ(const QByteArray &str);
     void vSeaskyTxSlot(void);
+    //添加阿里云数据解析槽函数
+    void vSeaskyAliyunIRQ(const QByteArray &message, const QMqttTopicName &topic);
+//    void vSeaskyAliyunIRQ(const QByteArray &str);
 private:
     qint32  vTxNum,vRxNum;
     qint32  vTxNumUTF8,vRxNumUTF8;
@@ -98,6 +111,7 @@ signals:
     void showRxHead(void);
     void vSerialTx(const QByteArray & str);
     void RxScope(const QVariant &rxData);
+    void Rx3DScope(void);
 };
 class vSeaskyPortQThread : public QThread
 {

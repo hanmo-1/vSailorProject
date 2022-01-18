@@ -1,5 +1,5 @@
-QT += core gui serialport opengl concurrent network
-QT += webenginewidgets
+QT += core gui serialport opengl concurrent  network mqtt
+QT += webenginewidgets datavisualization
 
 
 #DEFINES += QT_NO_DEBUG_OUTPUT #不使用qdebug
@@ -30,6 +30,11 @@ DEFINES += QCUSTOMPLOT_USE_OPENGL\
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    AliyunIoT/AliyunIoTClient.cpp \
+    AliyunIoT/AliyunMqttClient.cpp \
+    AliyunIoT/AliyunThingManager.cpp \
+    json/QJson.cpp \
+    json/cJSON.c \
     main.cpp \
     mainwindow.cpp \
     vAnsiBash/vansibash.cpp \
@@ -65,6 +70,15 @@ SOURCES += \
     vTcp/vqtcpsocket.cpp \
 
 HEADERS += \
+    AliyunIoT/AliyunIoTClient.h \
+    AliyunIoT/AliyunMqttClient.h \
+    AliyunIoT/AliyunThingManager.h \
+    AliyunIoT/Authorization.h \
+    AliyunIoT/Constant.h \
+    AliyunIoT/DateUtil.h \
+    AliyunIoT/JsonHandle.h \
+    json/QJson.h \
+    json/cJSON.h \
     mainwindow.h \
     vAnsiBash/vansibash.h \
     vCsv/CSVHelper.h \
